@@ -2,7 +2,7 @@
 
 A simple web-based tool that converts long screenshots or images into smoothly scrolling GIFs. Perfect for showcasing website content, long documents, or social media posts in an engaging animated format. Currently hosted at [gifscrolling.joseluissaorin.com](https://gifscrolling.joseluissaorin.com).
 
-![Scrolling GIF Creator](preview.gif)
+![Scrolling GIF Creator](preview.png)
 
 ## Features
 
