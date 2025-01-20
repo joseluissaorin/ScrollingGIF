@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scrolling GIF Creator</title>
+    <script src="js/gif.js"></script>
+    <script src="js/gif.worker.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,112,243,0.15);
+        }
+        h1 {
+            font-size: 2.5rem;
+            text-align: center;
+            margin: 0 0 30px;
+            background: linear-gradient(135deg, #0070f3 0%, #00a1ff 50%, #0070f3 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 200% auto;
+            animation: shine 3s linear infinite;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 10px rgba(0,112,243,0.1);
+        }
+        @keyframes shine {
+            to {
+                background-position: 200% center;
+            }
+        }
+        .upload-area {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .preview {
+            aspect-ratio: 16/9;
+            max-width: 100%;
+            background: #f0f0f0;
+            margin: 20px 0;
+            border-radius: 4px;
+            overflow: hidden;
+            display: none;
+        }
+        .preview-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .preview-section {
+            flex: 1;
+            min-width: 300px;
+        }
+        .preview-label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .gif-preview {
+            aspect-ratio: 16/9;
+            max-width: 100%;
+            background: #f0f0f0;
+            margin: 20px 0;
+            border-radius: 4px;
+            overflow: hidden;
+            display: none;
+        }
+        .gif-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .button {
+            background: linear-gradient(135deg, #0070f3 0%, #00a1ff 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,112,243,0.4);
+        }
+        .button:disabled {
+            background: linear-gradient(135deg, #ccc 0%, #ddd 100%);
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        .progress {
+            margin: 20px 0;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #0070f3;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        canvas {
+            display: none;
+        }
+        .settings-container {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .settings-group {
+            margin: 15px 0;
+        }
+        .settings-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .settings-value {
+            font-weight: bold;
+            color: #0070f3;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #0070f3;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #0051b3;
+            transform: scale(1.1);
+        }
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+        footer .heart {
+            color: #ff4d4d;
+            display: inline-block;
+            animation: heartbeat 1.5s ease infinite;
+        }
+        @keyframes heartbeat {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Scrolling GIF Creator</h1>
+        <div class="upload-area">
+            <input type="file" id="imageInput" accept="image/*" style="display: none">
+            <button class="button" onclick="document.getElementById('imageInput').click()">
+                Upload Image
+            </button>
+        </div>
+        <div class="error" id="error"></div>
+        <div class="settings-container">
+            <div class="settings-group">
+                <div class="settings-label">
+                    <span>Scrolling Duration</span>
+                    <span class="settings-value" id="durationValue">3.0s</span>
+                </div>
+                <input type="range" id="durationControl" min="20" max="100" value="30" 
+                    oninput="updateDurationLabel(this.value)" step="1">
+            </div>
+            <div class="settings-group">
+                <div class="settings-label">
+                    <span>Start/End Pause Duration</span>
+                    <span class="settings-value" id="pauseValue">2.5s</span>
+                </div>
+                <input type="range" id="pauseControl" min="10" max="100" value="45" 
+                    oninput="updatePauseLabel(this.value)">
+            </div>
+        </div>
+        <div class="preview-container">
+            <div class="preview-section">
+                <div class="preview-label">Original Image</div>
+                <div class="preview" id="preview">
+                    <img id="previewImage">
+                </div>
+            </div>
+            <div class="preview-section">
+                <div class="preview-label">Generated GIF</div>
+                <div class="gif-preview" id="gifPreview">
+                    <img id="gifPreviewImage">
+                </div>
+            </div>
+        </div>
+        <div class="progress" id="progress">
+            <div>Creating GIF... <span id="progressPercent">0</span>%</div>
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+        </div>
+        <button class="button" id="createButton" disabled onclick="initGifCreation()">
+            Create Scrolling GIF
+        </button>
+        <canvas id="canvas"></canvas>
+    </div>
+    <footer>
+        made with <span class="heart">❤️</span> by saorin<br>
+        © 2025
+    </footer>
+
+    <script>
+        // Wait for GIF.js to load
+if (typeof window.GIF === 'undefined') {
+    window.onload = function() {
+        if (typeof window.GIF === 'undefined') {
+            showError('GIF.js failed to load. Please refresh the page.');
+        }
+    };
+}
+
+const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const preview = document.getElementById('preview');
+        const previewImage = document.getElementById('previewImage');
+        const createButton = document.getElementById('createButton');
+        const errorDiv = document.getElementById('error');
+        const progressDiv = document.getElementById('progress');
+        const progressPercent = document.getElementById('progressPercent');
+        const progressBar = document.getElementById('progressBar');
+        let uploadedImage = null;
+
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (!file.type.startsWith('image/')) {
+                showError('Please upload an image file (PNG or JPG)');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    uploadedImage = img;
+                    previewImage.src = img.src;
+                    preview.style.display = 'block';
+                    createButton.disabled = false;
+                    errorDiv.style.display = 'none';
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            progressDiv.style.display = 'none';
+        }
+
+        function initGifCreation() {
+            if (!uploadedImage) return;
+            
+            try {
+                createGif();
+            } catch (error) {
+                showError('An error occurred while creating the GIF: ' + error.message);
+                console.error('GIF creation error:', error);
+                createButton.disabled = false;
+            }
+        }
+
+        function updateDurationLabel(value) {
+            // Convert to seconds: range 2-10 seconds
+            const durationSeconds = 2 + (value - 20) * (8 / 80);
+            document.getElementById('durationValue').textContent = durationSeconds.toFixed(1) + 's';
+        }
+
+        function updatePauseLabel(value) {
+            const pauseSeconds = (value * 20) / 1000;
+            document.getElementById('pauseValue').textContent = pauseSeconds.toFixed(1) + 's';
+        }
+
+        function createGif() {
+            if (typeof window.GIF === 'undefined') {
+                showError('GIF.js is not loaded yet. Please refresh the page.');
+                createButton.disabled = false;
+                return;
+            }
+            createButton.disabled = true;
+            progressDiv.style.display = 'block';
+            progressBar.style.width = '0%';
+            
+            // Set canvas size to 16:9 ratio with higher resolution
+            canvas.width = 1280;
+            canvas.height = 720;
+
+            // Get duration and pause settings
+            const durationControl = document.getElementById('durationControl');
+            const pauseControl = document.getElementById('pauseControl');
+            
+            // Convert slider value to actual duration (2-10 seconds)
+            const sliderValue = parseInt(durationControl.value);
+            const desiredDurationMs = (2000 + (sliderValue - 20) * (8000 / 80));
+            const baseDelay = 25; // ~24fps minimum
+            const frameDelay = baseDelay; // Fixed frame delay for consistent smoothness
+            const frameCount = Math.ceil(desiredDurationMs / frameDelay);
+            const pauseDelay = parseInt(pauseControl.value) * 20;
+            const initialDelayFrames = Math.ceil(pauseDelay / frameDelay);
+
+            // Calculate scaled dimensions while maintaining aspect ratio
+            let scaledWidth, scaledHeight;
+            const targetAspectRatio = uploadedImage.width / uploadedImage.height;
+            
+            if (targetAspectRatio > canvas.width / canvas.height) {
+                // Image is wider than canvas ratio
+                scaledWidth = canvas.width;
+                scaledHeight = canvas.width / targetAspectRatio;
+            } else {
+                // Image is taller or equal to canvas ratio
+                // Make the width fill the canvas width
+                scaledWidth = canvas.width;
+                scaledHeight = scaledWidth / targetAspectRatio;
+                
+                // Ensure minimum height for scrolling effect
+                const minHeight = canvas.height * 3;
+                if (scaledHeight < minHeight) {
+                    const scale = minHeight / scaledHeight;
+                    scaledWidth *= scale;
+                    scaledHeight *= scale;
+                }
+            }
+
+            // Ensure the image is not too large for performance
+            const maxHeight = canvas.height * 8;
+            if (scaledHeight > maxHeight) {
+                const scale = maxHeight / scaledHeight;
+                scaledWidth *= scale;
+                scaledHeight *= scale;
+            }
+
+            const gif = new GIF({
+                workers: 4,
+                quality: 1,
+                width: canvas.width,
+                height: canvas.height,
+                workerScript: 'js/gif.worker.js',
+                background: '#ffffff',
+                dither: 'FloydSteinberg-serpentine'
+            });
+
+            // Calculate horizontal centering offset and scroll distance
+            const xOffset = Math.max(0, (canvas.width - scaledWidth) / 2);
+            const maxScroll = scaledHeight - canvas.height;
+
+            // Add initial static frames
+            for (let i = 0; i < initialDelayFrames; i++) {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(
+                    uploadedImage,
+                    xOffset, 0,
+                    scaledWidth, scaledHeight
+                );
+                gif.addFrame(ctx, {
+                    copy: true,
+                    delay: frameDelay,
+                    dispose: 1
+                });
+            }
+
+            // Add scrolling frames with improved easing
+            for (let i = 0; i < frameCount; i++) {
+                // Apply enhanced easing function for smoother motion
+                const progress = i / (frameCount - 1);
+                // Cubic easing for smoother acceleration and deceleration
+                const easedProgress = progress < 0.5
+                    ? 4 * progress * progress * progress
+                    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+                const scrollOffset = maxScroll * easedProgress;
+
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, 0, canvas.width, canvas.height);
+                ctx.clip();
+                ctx.drawImage(
+                    uploadedImage,
+                    xOffset, -scrollOffset,
+                    scaledWidth, scaledHeight
+                );
+                ctx.restore();
+                gif.addFrame(ctx, {
+                    copy: true,
+                    delay: frameDelay,
+                    dispose: 2
+                });
+            }
+
+            // Add final static frames
+            for (let i = 0; i < initialDelayFrames; i++) {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(
+                    uploadedImage,
+                    xOffset, -maxScroll,
+                    scaledWidth, scaledHeight
+                );
+                gif.addFrame(ctx, {
+                    copy: true,
+                    delay: frameDelay,
+                    dispose: 1
+                });
+            }
+
+            gif.on('progress', function(p) {
+                const percent = Math.round(p * 100);
+                progressPercent.textContent = percent;
+                progressBar.style.width = percent + '%';
+            });
+
+            gif.on('finished', function(blob) {
+                const url = URL.createObjectURL(blob);
+                
+                // Show the GIF preview
+                const gifPreview = document.getElementById('gifPreview');
+                const gifPreviewImage = document.getElementById('gifPreviewImage');
+                gifPreviewImage.src = url;
+                gifPreview.style.display = 'block';
+                
+                // Create download link
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'scrolling-screenshot.gif';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                // Don't revoke URL immediately since we're using it for preview
+                // Add cleanup function when navigating away
+                window.addEventListener('beforeunload', function() {
+                    URL.revokeObjectURL(url);
+                });
+                
+                createButton.disabled = false;
+                progressDiv.style.display = 'none';
+                progressPercent.textContent = '0';
+                progressBar.style.width = '0%';
+            });
+
+            gif.render();
+        }
+    </script>
+</body>
+</html>
